@@ -149,9 +149,24 @@ export class TwitchChatBot {
     const isBroadcaster = tags["badges"]?.includes("broadcaster") || senderNick.toLowerCase() === this.channel;
     const isMod = tags["mod"] === "1" || isBroadcaster;
     const displayName = tags["display-name"] || senderNick;
+    const isCustomReward = Boolean(tags["custom-reward-id"]);
 
     if (!text.startsWith("!")) {
-      // Automatic detection of external music links (Spotify, Yandex, Apple, VK)
+      // 1. Channel Points Custom Reward Redemption (user ordered via points)
+      if (isCustomReward && config.autoConvertLinks) {
+        const isDirectVideo =
+          text.includes("youtube.com") ||
+          text.includes("youtu.be") ||
+          text.includes("vk.com/video") ||
+          text.includes("vkvideo.ru");
+
+        if (!isDirectVideo) {
+          this.handleRewardAutoConvert(text, { displayName, senderNick });
+          return;
+        }
+      }
+
+      // 2. Automatic detection of external music links in normal chat (Spotify, Yandex, Apple, VK)
       if (config.autoConvertLinks) {
         const musicUrl = extractMusicUrl(text);
         if (musicUrl && !musicUrl.includes("youtube.com") && !musicUrl.includes("youtu.be")) {
@@ -162,6 +177,30 @@ export class TwitchChatBot {
     }
 
     this.handleCommand(text, { senderNick, displayName, isMod, isBroadcaster });
+  }
+
+  async handleRewardAutoConvert(input, user) {
+    const now = Date.now();
+    const lastTime = this.recentConversions.get(input) || 0;
+    if (now - lastTime < 15000) return; // 15s cooldown per exact query
+    this.recentConversions.set(input, now);
+
+    console.log(`[Twitch Reward] Обнаружен заказ за баллы от ${user.displayName}: "${input}"`);
+    const res = await convertMusicUrl(input);
+    if (res && res.youtubeUrl) {
+      const trackLabel = res.artist ? `${res.artist} - ${res.title}` : res.title;
+      this.sendMessage(
+        `@${user.displayName} 🎵 "${trackLabel}" найден на YouTube! Trula требует прямую ссылку (баллы возвращены). Закажите трек повторно по этой ссылке: ${res.youtubeUrl}`
+      );
+    } else if (res && res.isVkMusic) {
+      this.sendMessage(`@${user.displayName} ⚠️ ${res.message}`);
+    } else if (res && res.isVkVideo) {
+      this.sendMessage(`@${user.displayName} ℹ️ ${res.message}`);
+    } else {
+      this.sendMessage(
+        `@${user.displayName} ⚠️ По запросу "${input}" не удалось найти трек. Уточните "Исполнитель - Трек" или используйте команду !link`
+      );
+    }
   }
 
   async handleAutoConvert(musicUrl, user) {
