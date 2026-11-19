@@ -54,11 +54,4 @@ export const config = {
 
   // Streamer Web-UI Remote Control
   remotePin: process.env.REMOTE_PIN || "1580",
-
-  // AI-DJ Voice Settings
-  aiDjEnabled: process.env.AI_DJ_ENABLED !== "false",
-  geminiApiKey: process.env.GEMINI_API_KEY || "",
-  aiDjVoice: process.env.AI_DJ_VOICE || "ru-RU-DmitryNeural",
-  aiDjTrackInterval: parseInt(process.env.AI_DJ_TRACK_INTERVAL || "5", 10),
-  aiDjCooldownSec: parseInt(process.env.AI_DJ_COOLDOWN_SEC || "40", 10),
 };

@@ -749,10 +749,6 @@
             <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
             <span>Скип</span>
           </button>
-          <button id="btnDjAnnounce" class="btn-main" style="grid-column: 1 / -1; background: rgba(0, 240, 255, 0.15); border: 1px solid rgba(0, 240, 255, 0.4); color: #00F0FF; padding: 12px 18px; border-radius: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:currentColor;"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-            <span id="djAnnounceText">🎙️ Озвучить трек (AI-DJ)</span>
-          </button>
         </div>
       </div>
     </section>
@@ -836,8 +832,6 @@
     const playIcon = document.getElementById("playIcon");
     const playText = document.getElementById("playText");
     const btnSkip = document.getElementById("btnSkip");
-    const btnDjAnnounce = document.getElementById("btnDjAnnounce");
-    const djAnnounceText = document.getElementById("djAnnounceText");
 
     const searchInput = document.getElementById("searchInput");
     const btnSearch = document.getElementById("btnSearch");
@@ -1089,29 +1083,6 @@
         btnSkip.style.opacity = "0.7";
         await apiPost("/api/remote/skip");
         setTimeout(() => { btnSkip.style.opacity = "1"; }, 300);
-      }
-    };
-
-    btnDjAnnounce.onclick = async () => {
-      btnDjAnnounce.style.opacity = "0.7";
-      djAnnounceText.textContent = "🎙️ Синтез речи...";
-      try {
-        const res = await apiPost("/api/remote/dj-announce");
-        if (res.success) {
-          djAnnounceText.textContent = "✔ Озвучено в OBS!";
-          setTimeout(() => {
-            djAnnounceText.textContent = "🎙️ Озвучить трек (AI-DJ)";
-            btnDjAnnounce.style.opacity = "1";
-          }, 2500);
-        } else {
-          alert("Ошибка: " + (res.error || "Не удалось озвучить"));
-          djAnnounceText.textContent = "🎙️ Озвучить трек (AI-DJ)";
-          btnDjAnnounce.style.opacity = "1";
-        }
-      } catch (err) {
-        alert("Ошибка сети: " + err.message);
-        djAnnounceText.textContent = "🎙️ Озвучить трек (AI-DJ)";
-        btnDjAnnounce.style.opacity = "1";
       }
     };
 

@@ -125,34 +125,6 @@
       50% { opacity: 0.7; transform: scale(0.96); }
     }
 
-    /* AI-DJ Speech On-Air Badge */
-    .badge-dj {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      background: rgba(0, 240, 255, 0.22);
-      border: 1px solid rgba(0, 240, 255, 0.6);
-      color: #00F0FF;
-      text-shadow: 0 0 8px rgba(0, 240, 255, 0.7);
-      border-radius: 6px;
-      padding: 2px 8px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      white-space: nowrap;
-      animation: pulseDj 1.2s infinite ease-in-out;
-    }
-    .badge-dj svg {
-      width: 12px;
-      height: 12px;
-      fill: currentColor;
-    }
-    @keyframes pulseDj {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.75; transform: scale(0.97); }
-    }
-
     /* Dynamic Ambient Backdrop from Album Art */
     .card-backdrop-wrapper {
       position: absolute;
@@ -400,12 +372,6 @@
           <span>ПАУЗА</span>
         </div>
 
-        <!-- AI-DJ On-Air Voice Indicator -->
-        <div id="badgeDj" class="badge-dj" style="display: none;">
-          <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-          <span>🎙️ DJ В ЭФИРЕ</span>
-        </div>
-
         <!-- Real Decibel Reactive Equalizer -->
         <div class="eq-wave" id="eqWave">
           <div class="eq-bar" id="eqBar1"></div>
@@ -472,7 +438,6 @@
     const badgeInitiator = document.getElementById("badgeInitiator");
     const initiatorNick = document.getElementById("initiatorNick");
     const badgePause = document.getElementById("badgePause");
-    const badgeDj = document.getElementById("badgeDj");
     const eqWave = document.getElementById("eqWave");
     const progressBar = document.getElementById("progressBar");
     const timeCurrent = document.getElementById("timeCurrent");
@@ -768,42 +733,7 @@
     }
     renderFrame();
 
-    // --- 6. AI-DJ AUDIO BROADCAST IN OBS ---
-    let currentDjAudio = null;
-    function playDjAudio(url, text) {
-      try {
-        if (currentDjAudio) {
-          currentDjAudio.pause();
-          currentDjAudio = null;
-        }
-
-        const audio = new Audio(url);
-        audio.volume = 0.95;
-        currentDjAudio = audio;
-
-        if (badgeDj) badgeDj.style.display = "inline-flex";
-
-        audio.onended = () => {
-          if (badgeDj) badgeDj.style.display = "none";
-          currentDjAudio = null;
-        };
-        audio.onerror = () => {
-          if (badgeDj) badgeDj.style.display = "none";
-          currentDjAudio = null;
-        };
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((e) => {
-            console.warn("[HUD] Автовоспроизведение звука заблокировано (нужен клик):", e);
-          });
-        }
-      } catch (err) {
-        console.warn("[HUD] Ошибка воспроизведения DJ:", err);
-      }
-    }
-
-    // --- 7. WEBSOCKET REAL-TIME SYNC ---
+    // --- 6. WEBSOCKET REAL-TIME SYNC ---
     function connectWs() {
       const loc = window.location;
       const wsProto = loc.protocol === "https:" ? "wss:" : "ws:";
@@ -833,8 +763,6 @@
             }
             lastSyncTime = Date.now();
             cancelIdleHide();
-          } else if (msg.type === "dj_speech") {
-            playDjAudio(msg.audioUrl, msg.text);
           }
         } catch (e) {
           console.warn("[HUD] Ошибка сообщения:", e);

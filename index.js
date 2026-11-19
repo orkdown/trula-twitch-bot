@@ -7,7 +7,6 @@ import { config } from "./config.js";
 import { TrulaClient } from "./trula.js";
 import { TwitchChatBot } from "./twitch.js";
 import { HudServer } from "./hud.js";
-import { AiDjService } from "./dj.js";
 
 // Bulletproof error handling: keep process alive on any unexpected error
 process.on("uncaughtException", (err) => {
@@ -36,10 +35,6 @@ const twitch = new TwitchChatBot(trula);
 // 3. Initialize HUD Widget Server for OBS
 const hud = new HudServer(trula);
 
-// 4. Initialize Free AI-DJ Service (TTS + Gemini)
-const dj = new AiDjService(trula, hud);
-hud.setAiDj(dj);
-
 async function start() {
   console.log("[Init] Проверка подключения к Trula API...");
   try {
@@ -57,12 +52,6 @@ async function start() {
 
   // Start HUD Server for OBS Studio Browser Source
   hud.start();
-
-  if (dj.enabled) {
-    console.log(
-      `[AI-DJ] Голосовой радиоведущий активен (голос: ${dj.voice}, интервал: каждые ${dj.interval} треков)!`
-    );
-  }
 }
 
 start();
