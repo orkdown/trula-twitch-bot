@@ -57,7 +57,6 @@ export class TrulaClient {
     // In-memory real-time state cached from WebSocket
     this.cachedNowPlaying = null;
     this.currentTrackId = null;
-    this.isEmergencyActive = false;
 
     // Callbacks
     this.onTrackChange = null;
@@ -384,34 +383,7 @@ export class TrulaClient {
     throw new Error("Не удалось переключить воспроизведение");
   }
 
-  async emergency(isActive) {
-    this.isEmergencyActive = Boolean(isActive);
-    let wsSent = false;
 
-    // 1. Native WebSocket frame (commands.mdx: type emergency, payload: { isActive })
-    if (this.isConnected && this.ws) {
-      this.sendWs({
-        type: "emergency",
-        payload: { isActive: this.isEmergencyActive },
-      });
-      wsSent = true;
-    }
-
-    // 2. Also try REST
-    try {
-      await this.fetchRest("actions/emergency", {
-        method: "POST",
-        body: JSON.stringify({ is_active: this.isEmergencyActive }),
-      });
-      return true;
-    } catch (e) {
-      if (wsSent) return true;
-      console.warn("[Trula] REST emergency error:", e.message);
-    }
-
-    if (wsSent) return true;
-    throw new Error("Не удалось изменить статус экстренного скрытия");
-  }
 
   async setTrack({ orderId = null, trackId = null, playlistId = null }) {
     let wsSent = false;
@@ -540,17 +512,6 @@ export class TrulaClient {
         console.log(`[Trula WS] Новый заказ в очередь: ${frame.payload?.order?.track?.title || "трек"}`);
         if (this.onWsEvent) {
           this.onWsEvent("orderAdded", frame.payload);
-        }
-        break;
-      }
-
-      case "emergency": {
-        if (typeof frame.payload?.isActive === "boolean") {
-          this.isEmergencyActive = frame.payload.isActive;
-          console.log(`[Trula WS] Аварийный режим (emergency): ${this.isEmergencyActive ? "ВКЛЮЧЕН" : "ВЫКЛЮЧЕН"}`);
-          if (this.onWsEvent) {
-            this.onWsEvent("emergency", frame.payload);
-          }
         }
         break;
       }

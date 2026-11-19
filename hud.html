@@ -69,8 +69,60 @@
     }
 
     .hud-card.paused {
-      opacity: 0.85;
-      filter: grayscale(15%);
+      border-color: rgba(255, 185, 0, 0.45);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 25px rgba(255, 185, 0, 0.25);
+    }
+
+    .cover-pause-badge {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 14, 24, 0.65);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 5;
+    }
+    .cover-pause-badge svg {
+      width: 26px;
+      height: 26px;
+      fill: #FFB300;
+      filter: drop-shadow(0 0 8px rgba(255, 179, 0, 0.7));
+    }
+    .hud-card.paused .cover-pause-badge {
+      opacity: 1;
+    }
+
+    .badge-pause {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255, 179, 0, 0.22);
+      border: 1px solid rgba(255, 179, 0, 0.5);
+      color: #FFC02A;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      animation: pulsePause 2s infinite ease-in-out;
+    }
+    .badge-pause svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
+    @keyframes pulsePause {
+      0%, 100% { opacity: 0.95; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(0.96); }
     }
 
     /* Dynamic Ambient Backdrop from Album Art */
@@ -300,6 +352,9 @@
         <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
       </div>
       <img id="coverImg" class="cover-img" src="" alt="Cover" crossorigin="anonymous" style="display:none;" />
+      <div id="coverPauseBadge" class="cover-pause-badge">
+        <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </div>
     </div>
 
     <!-- Track Information -->
@@ -309,6 +364,12 @@
         <div id="badgeInitiator" class="badge-initiator" style="display: none;">
           <svg viewBox="0 0 24 24"><path d="M2.149 0l-1.612 4.119v16.836h5.731v3.045h3.224l3.045-3.045h4.657l6.269-6.269v-14.686h-21.314zm19.164 13.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045h-4.836v-15.045h17.194v11.463zm-10.209-6.448h2.149v6.448h-2.149v-6.448zm5.731 0h2.149v6.448h-2.149v-6.448z"/></svg>
           Заказал(а): <span id="initiatorNick" class="initiator-nick"></span>
+        </div>
+
+        <!-- Pause Badge Indicator -->
+        <div id="badgePause" class="badge-pause" style="display: none;">
+          <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          <span>ПАУЗА</span>
         </div>
 
         <!-- Real Decibel Reactive Equalizer -->
@@ -376,6 +437,8 @@
     const titleWrapper = document.getElementById("titleWrapper");
     const badgeInitiator = document.getElementById("badgeInitiator");
     const initiatorNick = document.getElementById("initiatorNick");
+    const badgePause = document.getElementById("badgePause");
+    const eqWave = document.getElementById("eqWave");
     const progressBar = document.getElementById("progressBar");
     const timeCurrent = document.getElementById("timeCurrent");
     const timeTotal = document.getElementById("timeTotal");
@@ -623,12 +686,16 @@
       timeTotal.textContent = totalDuration > 0 ? formatTime(totalDuration) : "";
       timeCurrent.textContent = formatTime(serverSeek);
 
-      // 5. Visibility with Auto-Hide Inactivity Timer
+      // 5. Visibility with Auto-Hide Inactivity Timer & Visual Pause Indication
       if (isPlaying) {
         hudCard.classList.remove("paused");
+        badgePause.style.display = "none";
+        eqWave.style.display = "flex";
         cancelIdleHide();
       } else {
         hudCard.classList.add("paused");
+        badgePause.style.display = "inline-flex";
+        eqWave.style.display = "none";
         scheduleIdleHide();
       }
     }
@@ -666,16 +733,6 @@
     }
     renderFrame();
 
-    function handleEmergency(isActive) {
-      if (isActive) {
-        hudCard.style.filter = "grayscale(90%) opacity(0.35)";
-        hudCard.style.transform = "scale(0.96)";
-      } else {
-        hudCard.style.filter = "none";
-        hudCard.style.transform = "none";
-      }
-    }
-
     // --- 6. WEBSOCKET REAL-TIME SYNC ---
     function connectWs() {
       const loc = window.location;
@@ -694,9 +751,6 @@
           const msg = JSON.parse(event.data);
           if (msg.type === "init" || msg.type === "track_change") {
             updateUi(msg.track, msg.isPlaying);
-            if (typeof msg.isEmergency === "boolean") handleEmergency(msg.isEmergency);
-          } else if (msg.type === "emergency") {
-            handleEmergency(msg.isActive);
           } else if (msg.type === "state_change") {
             isPlaying = msg.state === "play";
             if (currentTrack) {

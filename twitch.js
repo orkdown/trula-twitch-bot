@@ -360,14 +360,6 @@ export class TwitchChatBot {
           }
           break;
         }
-
-        case "!panic":
-        case "!emergency": {
-          if (!user.isMod) return;
-          await this.trula.emergency(true);
-          this.sendMessage(`🚨 Видео на стриме скрыто модератором @${user.displayName}!`);
-          break;
-        }
       }
     } catch (err) {
       console.error(`[Twitch] Ошибка при обработке команды ${command}:`, err.message);

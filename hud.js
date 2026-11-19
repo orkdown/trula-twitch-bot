@@ -153,14 +153,7 @@ export class HudServer {
             return;
           }
 
-          if (pathname === "/api/remote/emergency" && req.method === "POST") {
-            const isActive = Boolean(body.isActive);
-            await this.trula.emergency(isActive);
-            this.broadcast({ type: "emergency", isActive });
-            res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ success: true, isActive }));
-            return;
-          }
+
 
           if (pathname === "/api/remote/set-track" && req.method === "POST") {
             await this.trula.setTrack({
@@ -227,7 +220,7 @@ export class HudServer {
       this.clients.add(ws);
       console.log(`[HUD/Remote] Подключен новый клиент (всего: ${this.clients.size})`);
 
-      // Immediately send current playing track and emergency state on connect
+      // Immediately send current playing track on connect
       try {
         const data = await this.trula.getHudData();
         if (ws.readyState === ws.OPEN) {
@@ -235,7 +228,6 @@ export class HudServer {
             JSON.stringify({
               type: "init",
               ...data,
-              isEmergency: this.trula.isEmergencyActive,
             })
           );
         }
@@ -292,7 +284,6 @@ export class HudServer {
         this.broadcast({
           type: "track_change",
           ...hudData,
-          isEmergency: this.trula.isEmergencyActive,
         });
       } else if (type === "playState") {
         const newState = payload?.state || "stop";
@@ -300,8 +291,6 @@ export class HudServer {
           this.trula.cachedNowPlaying.state = newState;
         }
         this.broadcast({ type: "state_change", state: newState });
-      } else if (type === "emergency") {
-        this.broadcast({ type: "emergency", isActive: payload?.isActive });
       } else if (type === "orderAdded") {
         this.broadcast({ type: "orderAdded", payload });
       }
