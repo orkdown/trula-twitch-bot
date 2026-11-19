@@ -24,17 +24,20 @@
    # Токен публичного API Trula:
    TRULA_TOKEN=your_trula_token_here
 
-   # Имя вашего Twitch-канала (например, orkdown):
-   TWITCH_CHANNEL=orkdown
+   # Имя вашего Twitch-канала:
+   TWITCH_CHANNEL=your_channel_name
 
    # Имя аккаунта бота (можно использовать ваш основной ник):
-   TWITCH_BOT_USERNAME=orkdown
+   TWITCH_BOT_USERNAME=your_bot_username
 
-   # OAuth-токен для отправки сообщений в чат (получить в 1 клик на https://twitchapps.com/tmi/):
-   TWITCH_BOT_OAUTH=oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   # OAuth-токен чата (получить на https://twitchtokengenerator.com с правами chat:read, chat:edit):
+   TWITCH_BOT_OAUTH=oauth:your_oauth_token_here
 
    # Сколько голосов зрителей требуется для !skip (0 - только стример и модеры):
    VOTE_SKIP_THRESHOLD=3
+
+   # PIN-код для доступа к веб-пульту стримера (/remote):
+   REMOTE_PIN=7777
    ```
 2. Если `TWITCH_BOT_OAUTH` не заполнен, бот автоматически подключится в **режиме только для чтения** (будет слушать чат и логировать ответы в консоль).
 

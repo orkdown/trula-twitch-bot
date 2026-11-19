@@ -45,7 +45,7 @@ export const config = {
   commandCooldownMs: parseInt(process.env.COMMAND_COOLDOWN_MS || "3000", 10),
 
   // Music2YouTube Converter Integration
-  converterApiUrl: process.env.CONVERTER_API_URL || "https://spotify.orkproxy.nx.kg/api/convert",
+  converterApiUrl: process.env.CONVERTER_API_URL || "",
   autoConvertLinks: process.env.AUTO_CONVERT_LINKS !== "false",
 
   // HUD Widget Configuration
