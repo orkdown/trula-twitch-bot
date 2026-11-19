@@ -39,27 +39,28 @@
       user-select: none;
     }
 
-    /* Container Card with Glassmorphism and Dynamic Accent Glow */
+    /* Container Card with Glassmorphism and Dynamic Ambient Album Art */
     .hud-card {
       position: relative;
       display: flex;
       align-items: center;
       gap: 16px;
-      background: var(--bg);
-      backdrop-filter: blur(24px) saturate(180%);
-      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      background: rgba(14, 16, 26, 0.42);
+      backdrop-filter: blur(28px) saturate(200%);
+      -webkit-backdrop-filter: blur(28px) saturate(200%);
       border: 1px solid var(--accent-border);
       border-radius: 20px;
       padding: 14px 20px;
       width: 530px;
       max-width: 100%;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 30px var(--accent-glow);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 35px var(--accent-glow);
       opacity: 0;
       transform: translateY(20px) scale(0.98);
       transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), 
                   transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
                   border-color 0.8s ease,
                   box-shadow 0.8s ease;
+      overflow: hidden;
     }
 
     .hud-card.visible {
@@ -72,12 +73,42 @@
       filter: grayscale(15%);
     }
 
+    /* Dynamic Ambient Backdrop from Album Art */
+    .card-backdrop-wrapper {
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      overflow: hidden;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .card-backdrop-img {
+      position: absolute;
+      inset: -40px;
+      background-size: cover;
+      background-position: center;
+      filter: blur(32px) saturate(260%) brightness(0.65);
+      transform: scale(1.3);
+      opacity: 0;
+      transition: background-image 0.8s ease, opacity 0.8s ease;
+    }
+
+    .card-backdrop-gradient {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 18% 50%, rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.58) 0%, rgba(12, 14, 24, 0.72) 100%),
+                  linear-gradient(135deg, rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.38) 0%, rgba(8, 10, 18, 0.82) 100%);
+      transition: background 0.8s ease;
+    }
+
     /* Album Art with Dynamic Backlight */
     .cover-wrapper {
       position: relative;
       width: 86px;
       height: 86px;
       flex-shrink: 0;
+      z-index: 2;
     }
 
     .cover-glow {
@@ -123,12 +154,14 @@
 
     /* Track Content Info */
     .track-info {
+      position: relative;
       display: flex;
       flex-direction: column;
       justify-content: center;
       flex-grow: 1;
       min-width: 0;
       gap: 6px;
+      z-index: 2;
     }
 
     .meta-top {
@@ -143,10 +176,19 @@
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.2);
+      background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.28);
       border: 1px solid var(--accent-border);
-      color: #dfcbff;
+      color: #FFFFFF;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
       border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      transition: background 0.8s ease, border-color 0.8s ease;
+    }
       padding: 2px 8px;
       font-size: 11px;
       font-weight: 600;
@@ -245,6 +287,12 @@
 </head>
 <body>
   <div id="hudCard" class="hud-card">
+    <!-- Dynamic Ambient Backdrop from Album Art -->
+    <div class="card-backdrop-wrapper">
+      <div id="cardBackdropImg" class="card-backdrop-img"></div>
+      <div id="cardBackdropGradient" class="card-backdrop-gradient"></div>
+    </div>
+
     <!-- Album Art -->
     <div class="cover-wrapper">
       <div class="cover-glow" id="coverGlow"></div>
@@ -297,6 +345,8 @@
     const scale = parseFloat(urlParams.get("scale")) || 1.0;
 
     const hudCard = document.getElementById("hudCard");
+    const cardBackdropImg = document.getElementById("cardBackdropImg");
+    const cardBackdropGradient = document.getElementById("cardBackdropGradient");
     const coverImg = document.getElementById("coverImg");
     const coverPlaceholder = document.getElementById("coverPlaceholder");
     const trackTitle = document.getElementById("trackTitle");
@@ -519,8 +569,10 @@
         initiatorNick.textContent = trackData.initiator;
       }
 
-      // 3. Cover Artwork & Adaptive Palette
+      // 3. Cover Artwork & Dynamic Colorful Backdrop
       if (trackData.thumbnail) {
+        cardBackdropImg.style.backgroundImage = `url("${trackData.thumbnail}")`;
+        cardBackdropImg.style.opacity = "0.95";
         coverImg.src = trackData.thumbnail;
         coverImg.onload = () => {
           coverImg.style.display = "block";
@@ -530,8 +582,12 @@
         coverImg.onerror = () => {
           coverImg.style.display = "none";
           coverPlaceholder.style.display = "flex";
+          cardBackdropImg.style.backgroundImage = "none";
+          cardBackdropImg.style.opacity = "0";
         };
       } else {
+        cardBackdropImg.style.backgroundImage = "none";
+        cardBackdropImg.style.opacity = "0";
         coverImg.style.display = "none";
         coverPlaceholder.style.display = "flex";
       }
