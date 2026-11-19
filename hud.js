@@ -155,7 +155,11 @@ export class HudServer {
         const hudData = await this.trula.getHudData();
         this.broadcast({ type: "track_change", ...hudData });
       } else if (type === "playState") {
-        this.broadcast({ type: "state_change", state: payload?.state || "stop" });
+        const newState = payload?.state || "stop";
+        if (this.trula.cachedNowPlaying) {
+          this.trula.cachedNowPlaying.state = newState;
+        }
+        this.broadcast({ type: "state_change", state: newState });
       }
     } catch (err) {
       console.warn("[HUD] Ошибка при обработке события Trula:", err.message);

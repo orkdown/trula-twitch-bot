@@ -1,5 +1,40 @@
 import { config } from "./config.js";
 
+const durationCache = new Map();
+
+async function getYoutubeDuration(videoId) {
+  if (!videoId) return 0;
+  if (durationCache.has(videoId)) return durationCache.get(videoId);
+
+  try {
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        Cookie: "CONSENT=YES+cb.20210328-17-p0.en+FX+478",
+      },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (res.ok) {
+      const html = await res.text();
+      const durMatch = html.match(/"approxDurationMs"\s*:\s*"(\d+)"/);
+      if (durMatch) {
+        const sec = Math.floor(parseInt(durMatch[1], 10) / 1000);
+        durationCache.set(videoId, sec);
+        return sec;
+      }
+      const lengthMatch = html.match(/"lengthSeconds"\s*:\s*"(\d+)"/);
+      if (lengthMatch) {
+        const sec = parseInt(lengthMatch[1], 10);
+        durationCache.set(videoId, sec);
+        return sec;
+      }
+    }
+  } catch {}
+  return 0;
+}
+
 export function formatTime(seconds) {
   if (seconds === null || seconds === undefined || isNaN(seconds)) return null;
   const m = Math.floor(seconds / 60);
@@ -94,6 +129,7 @@ export class TrulaClient {
         return {
           title,
           initiator: initiator || "Баллы канала",
+          isPlaylist: false,
           platform: track.platform || "youtube",
           externalId: track.external_id || "",
           timing,
@@ -103,12 +139,20 @@ export class TrulaClient {
 
       if (data.kind === "playlist" && data.playlist) {
         const pl = data.playlist;
+        let externalId = "";
+        if (pl.preview_url) {
+          const match = pl.preview_url.match(/vi\/([a-zA-Z0-9_\-]+)\//);
+          if (match) externalId = match[1];
+        }
+
         return {
           title: pl.title || "Плейлист",
-          initiator: `Плейлист (${pl.playlist_title || "Фон"})`,
+          initiator: "", // Музыка из плейлиста стримера: не пишем кто заказал!
+          isPlaylist: true,
           platform: pl.platform || "youtube",
+          externalId,
           timing: "",
-          url: null,
+          url: externalId ? `https://youtube.com/watch?v=${externalId}` : null,
         };
       }
     } catch (e) {
@@ -121,7 +165,11 @@ export class TrulaClient {
   formatWsNowPlaying(wsData) {
     const track = wsData.track || {};
     const title = track.title || "Без названия";
-    const initiator = wsData.initiator?.displayName || "Баллы канала";
+    const isPlaylist =
+      wsData.kind === "playlist" ||
+      !wsData.initiator ||
+      wsData.initiator?.displayName?.startsWith("Плейлист");
+    const initiator = isPlaylist ? "" : (wsData.initiator?.displayName || "");
     const seekStr = formatTime(wsData.seek);
     const durationStr = track.durationText || formatTime(wsData.endTime);
 
@@ -140,6 +188,7 @@ export class TrulaClient {
     return {
       title,
       initiator,
+      isPlaylist,
       platform: track.platform || "youtube",
       timing,
       url,
@@ -148,57 +197,110 @@ export class TrulaClient {
 
   async getHudData() {
     const now = this.cachedNowPlaying;
+    let isPlaying = now ? now.state === "play" : true;
+    let title = "";
+    let initiator = "";
+    let isPlaylist = false;
+    let platform = "youtube";
+    let externalId = "";
+    let thumbnail = "";
+    let seek = 0;
+    let duration = 0;
+
     if (now && now.track) {
       const track = now.track || {};
-      const externalId = track.externalId || track.external_id || "";
-      const thumbnail = externalId
-        ? `https://i.ytimg.com/vi/${externalId}/hqdefault.jpg`
-        : "";
-
-      return {
-        isPlaying: now.state === "play",
-        track: {
-          title: track.title || "Без названия",
-          initiator: now.initiator?.displayName || "Баллы канала",
-          platform: track.platform || "youtube",
-          externalId,
-          thumbnail,
-          seek: typeof now.seek === "number" ? Math.floor(now.seek) : 0,
-          duration:
-            typeof now.endTime === "number"
-              ? Math.floor(now.endTime)
-              : typeof track.duration === "number"
-                ? Math.floor(track.duration)
-                : 0,
-          state: now.state || "stop",
-        },
-      };
-    }
-
-    // Fallback to REST API
-    try {
-      const rest = await this.getNowPlaying();
-      if (!rest) {
+      title = track.title || "Без названия";
+      isPlaylist =
+        now.kind === "playlist" ||
+        !now.initiator ||
+        now.initiator?.displayName?.startsWith("Плейлист");
+      initiator = isPlaylist ? "" : (now.initiator?.displayName || "");
+      platform = track.platform || "youtube";
+      externalId = track.externalId || track.external_id || "";
+      seek = typeof now.seek === "number" ? Math.floor(now.seek) : 0;
+      duration =
+        typeof now.endTime === "number"
+          ? Math.floor(now.endTime)
+          : typeof track.duration === "number"
+            ? Math.floor(track.duration)
+            : 0;
+    } else {
+      // Fallback to REST API
+      const restData = await this.fetchRest("now-playing").catch(() => null);
+      if (!restData || restData.kind === "none" || (!restData.order && !restData.playlist)) {
         return { isPlaying: false, track: null };
       }
-      return {
-        isPlaying: true,
-        track: {
-          title: rest.title,
-          initiator: rest.initiator || "Баллы канала",
-          platform: rest.platform,
-          externalId: rest.externalId,
-          thumbnail: rest.externalId
-            ? `https://i.ytimg.com/vi/${rest.externalId}/hqdefault.jpg`
-            : "",
+
+      if (restData.kind === "playlist" && restData.playlist) {
+        const pl = restData.playlist;
+        title = pl.title || "Плейлист";
+        isPlaylist = true;
+        initiator = "";
+        platform = pl.platform || "youtube";
+        if (pl.preview_url) {
+          const match = pl.preview_url.match(/vi\/([a-zA-Z0-9_\-]+)\//);
+          if (match) externalId = match[1];
+        }
+      } else if (restData.kind === "order" && restData.order) {
+        const ord = restData.order;
+        const trk = ord.track || {};
+        title = trk.title || "Трек";
+        platform = trk.platform || "youtube";
+        externalId = trk.external_id || "";
+        isPlaylist = false;
+        initiator = (await this.resolveEventInitiator(ord.event_id)) || "Баллы канала";
+        if (ord.start_time !== null && ord.end_time !== null) {
+          duration = Math.floor(ord.end_time - ord.start_time);
+        }
+      }
+
+      // Populate cachedNowPlaying so interval and WS stay synced
+      if (!this.cachedNowPlaying) {
+        this.cachedNowPlaying = {
+          state: isPlaying ? "play" : "pause",
           seek: 0,
-          duration: 0,
-          state: "play",
-        },
-      };
-    } catch {
-      return { isPlaying: false, track: null };
+          endTime: duration,
+          track: {
+            title,
+            externalId,
+            platform,
+            duration,
+          },
+          initiator: isPlaylist ? null : { displayName: initiator },
+          kind: isPlaylist ? "playlist" : "order",
+        };
+      }
     }
+
+    // Resolve thumbnail & duration if missing
+    if (externalId) {
+      thumbnail = `https://i.ytimg.com/vi/${externalId}/hqdefault.jpg`;
+      if (duration === 0) {
+        duration = await getYoutubeDuration(externalId);
+        if (this.cachedNowPlaying) {
+          this.cachedNowPlaying.endTime = duration;
+          if (this.cachedNowPlaying.track) {
+            this.cachedNowPlaying.track.duration = duration;
+          }
+        }
+      }
+    }
+
+    return {
+      isPlaying,
+      isPlaylist,
+      track: {
+        title,
+        initiator,
+        isPlaylist,
+        platform,
+        externalId,
+        thumbnail,
+        seek,
+        duration,
+        state: isPlaying ? "play" : "pause",
+      },
+    };
   }
 
   async resolveEventInitiator(eventId) {
