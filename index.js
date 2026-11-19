@@ -1,3 +1,8 @@
+import ws from "ws";
+if (typeof globalThis.WebSocket === "undefined") {
+  globalThis.WebSocket = ws;
+}
+
 import { config } from "./config.js";
 import { TrulaClient } from "./trula.js";
 import { TwitchChatBot } from "./twitch.js";
