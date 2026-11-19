@@ -47,4 +47,8 @@ export const config = {
   // Music2YouTube Converter Integration
   converterApiUrl: process.env.CONVERTER_API_URL || "https://spotify.orkproxy.nx.kg/api/convert",
   autoConvertLinks: process.env.AUTO_CONVERT_LINKS !== "false",
+
+  // HUD Widget Configuration
+  hudPort: parseInt(process.env.HUD_PORT || "3333", 10),
+  hudHost: process.env.HUD_HOST || "0.0.0.0",
 };

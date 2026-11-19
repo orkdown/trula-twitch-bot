@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trula Stream Music HUD</title>
+  <style>
+    :root {
+      --accent: #9146FF;
+      --accent-glow: rgba(145, 70, 255, 0.4);
+      --accent-cyan: #00F5FF;
+      --bg: rgba(14, 16, 26, 0.78);
+      --border: rgba(255, 255, 255, 0.12);
+      --text-main: #FFFFFF;
+      --text-muted: #9EABBA;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: transparent;
+      font-family: var(--font-family);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 20px;
+      user-select: none;
+    }
+
+    /* Container Card with Glassmorphism */
+    .hud-card {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--bg);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 14px 18px;
+      width: 520px;
+      max-width: 100%;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      opacity: 0;
+      transform: translateY(24px) scale(0.97);
+      transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .hud-card.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .hud-card.paused {
+      opacity: 0.65;
+    }
+
+    /* Album Art */
+    .cover-wrapper {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      flex-shrink: 0;
+    }
+
+    .cover-glow {
+      position: absolute;
+      inset: -4px;
+      border-radius: 16px;
+      background: var(--accent);
+      filter: blur(14px);
+      opacity: 0.35;
+      transition: opacity 0.4s ease;
+      z-index: 1;
+    }
+
+    .cover-img {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      z-index: 2;
+      background: #111420;
+    }
+
+    .cover-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1f2333 0%, #11131c 100%);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 2;
+    }
+
+    .cover-placeholder svg {
+      width: 36px;
+      height: 36px;
+      fill: #667280;
+    }
+
+    /* Track Content Info */
+    .track-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      flex-grow: 1;
+      min-width: 0;
+      gap: 6px;
+    }
+
+    .meta-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-initiator {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(145, 70, 255, 0.18);
+      border: 1px solid rgba(145, 70, 255, 0.45);
+      color: #dfcbff;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-initiator svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
+
+    .initiator-nick {
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    .badge-platform {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(255, 0, 0, 0.18);
+      border: 1px solid rgba(255, 0, 0, 0.35);
+      color: #ff8080;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    /* Track Title with Auto-marquee */
+    .title-wrapper {
+      position: relative;
+      overflow: hidden;
+      white-space: nowrap;
+      mask-image: linear-gradient(90deg, #000 90%, transparent);
+      -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent);
+    }
+
+    .track-title {
+      display: inline-block;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.2px;
+      line-height: 1.3;
+      transition: transform 0.3s ease;
+    }
+
+    /* Progress Bar */
+    .progress-section {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .progress-bar-bg {
+      position: relative;
+      width: 100%;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-cyan) 100%);
+      border-radius: 999px;
+      box-shadow: 0 0 10px var(--accent-glow);
+      transition: width 0.1s linear;
+    }
+
+    .timings {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Equalizer Wave Icon */
+    .eq-wave {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 14px;
+      margin-left: auto;
+    }
+
+    .eq-bar {
+      width: 3px;
+      background: var(--accent-cyan);
+      border-radius: 1px;
+      animation: eqBounce 0.8s ease-in-out infinite alternate;
+    }
+
+    .eq-bar:nth-child(1) { height: 4px; animation-delay: 0.1s; }
+    .eq-bar:nth-child(2) { height: 12px; animation-delay: 0.3s; }
+    .eq-bar:nth-child(3) { height: 8px; animation-delay: 0.2s; }
+    .eq-bar:nth-child(4) { height: 14px; animation-delay: 0.4s; }
+
+    .paused .eq-bar {
+      animation: none;
+      height: 3px !important;
+      opacity: 0.5;
+    }
+
+    @keyframes eqBounce {
+      0% { height: 3px; }
+      100% { height: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="hudCard" class="hud-card">
+    <!-- Album Art -->
+    <div class="cover-wrapper">
+      <div class="cover-glow" id="coverGlow"></div>
+      <div class="cover-placeholder" id="coverPlaceholder">
+        <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+      </div>
+      <img id="coverImg" class="cover-img" src="" alt="Cover" style="display:none;" />
+    </div>
+
+    <!-- Track Information -->
+    <div class="track-info">
+      <div class="meta-top">
+        <div class="badge-initiator">
+          <!-- Twitch SVG Icon -->
+          <svg viewBox="0 0 24 24"><path d="M2.149 0l-1.612 4.119v16.836h5.731v3.045h3.224l3.045-3.045h4.657l6.269-6.269v-14.686h-21.314zm19.164 13.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045h-4.836v-15.045h17.194v11.463zm-10.209-6.448h2.149v6.448h-2.149v-6.448zm5.731 0h2.149v6.448h-2.149v-6.448z"/></svg>
+          Заказал(а): <span id="initiatorNick" class="initiator-nick">Баллы канала</span>
+        </div>
+        <div id="platformBadge" class="badge-platform">YOUTUBE</div>
+        <div class="eq-wave">
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+        </div>
+      </div>
+
+      <div class="title-wrapper">
+        <div id="trackTitle" class="track-title">Трек не играет</div>
+      </div>
+
+      <div class="progress-section">
+        <div class="progress-bar-bg">
+          <div id="progressBar" class="progress-bar-fill"></div>
+        </div>
+        <div class="timings">
+          <span id="timeCurrent">0:00</span>
+          <span id="timeTotal">0:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // URL Query Parameter options (e.g. ?scale=1.2&autohide=false)
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoHide = urlParams.get("autohide") !== "false";
+    const scale = parseFloat(urlParams.get("scale")) || 1.0;
+
+    const hudCard = document.getElementById("hudCard");
+    const coverImg = document.getElementById("coverImg");
+    const coverPlaceholder = document.getElementById("coverPlaceholder");
+    const trackTitle = document.getElementById("trackTitle");
+    const initiatorNick = document.getElementById("initiatorNick");
+    const platformBadge = document.getElementById("platformBadge");
+    const progressBar = document.getElementById("progressBar");
+    const timeCurrent = document.getElementById("timeCurrent");
+    const timeTotal = document.getElementById("timeTotal");
+
+    if (scale !== 1.0) {
+      hudCard.style.transformOrigin = "left center";
+      hudCard.style.scale = scale;
+    }
+
+    let currentTrack = null;
+    let isPlaying = false;
+    let serverSeek = 0;
+    let totalDuration = 0;
+    let lastSyncTime = Date.now();
+    let animFrame = null;
+    let hideTimer = null;
+
+    function formatTime(sec) {
+      if (!sec || isNaN(sec) || sec < 0) return "0:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${s < 10 ? "0" : ""}${s}`;
+    }
+
+    function updateUi(trackData, playingState) {
+      if (!trackData || !trackData.title) {
+        if (autoHide) {
+          hudCard.classList.remove("visible");
+        }
+        return;
+      }
+
+      currentTrack = trackData;
+      isPlaying = playingState;
+
+      // Update Texts
+      trackTitle.textContent = trackData.title;
+      initiatorNick.textContent = trackData.initiator || "Баллы канала";
+      platformBadge.textContent = (trackData.platform || "YOUTUBE").toUpperCase();
+
+      // Platform badge style
+      if (trackData.platform === "vk") {
+        platformBadge.style.background = "rgba(0, 119, 255, 0.2)";
+        platformBadge.style.borderColor = "rgba(0, 119, 255, 0.4)";
+        platformBadge.style.color = "#70b4ff";
+      } else {
+        platformBadge.style.background = "rgba(255, 0, 0, 0.18)";
+        platformBadge.style.borderColor = "rgba(255, 0, 0, 0.35)";
+        platformBadge.style.color = "#ff8080";
+      }
+
+      // Update Cover Image
+      if (trackData.thumbnail) {
+        coverImg.src = trackData.thumbnail;
+        coverImg.onload = () => {
+          coverImg.style.display = "block";
+          coverPlaceholder.style.display = "none";
+        };
+        coverImg.onerror = () => {
+          coverImg.style.display = "none";
+          coverPlaceholder.style.display = "flex";
+        };
+      } else {
+        coverImg.style.display = "none";
+        coverPlaceholder.style.display = "flex";
+      }
+
+      // Durations & Timers
+      serverSeek = trackData.seek || 0;
+      totalDuration = trackData.duration || 0;
+      lastSyncTime = Date.now();
+
+      timeTotal.textContent = formatTime(totalDuration);
+      timeCurrent.textContent = formatTime(serverSeek);
+
+      // Card Visibility
+      if (isPlaying) {
+        hudCard.classList.add("visible");
+        hudCard.classList.remove("paused");
+        if (hideTimer) {
+          clearTimeout(hideTimer);
+          hideTimer = null;
+        }
+      } else {
+        hudCard.classList.add("paused");
+        if (autoHide && !hideTimer) {
+          hideTimer = setTimeout(() => {
+            hudCard.classList.remove("visible");
+          }, 6000);
+        }
+      }
+    }
+
+    // High-Precision 60fps Interpolated Progress Bar
+    function renderFrame() {
+      if (isPlaying && totalDuration > 0) {
+        const elapsed = serverSeek + (Date.now() - lastSyncTime) / 1000;
+        const clamped = Math.min(elapsed, totalDuration);
+        const percent = Math.min(100, Math.max(0, (clamped / totalDuration) * 100));
+
+        progressBar.style.width = `${percent}%`;
+        timeCurrent.textContent = formatTime(clamped);
+      } else if (!isPlaying && totalDuration > 0) {
+        const percent = Math.min(100, Math.max(0, (serverSeek / totalDuration) * 100));
+        progressBar.style.width = `${percent}%`;
+        timeCurrent.textContent = formatTime(serverSeek);
+      }
+      requestAnimationFrame(renderFrame);
+    }
+    renderFrame();
+
+    // Connect to WebSocket with Auto-Reconnect
+    function connectWs() {
+      const loc = window.location;
+      const wsProto = loc.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${wsProto}//${loc.host}/ws`;
+
+      console.log("[HUD] Подключение к WebSocket:", wsUrl);
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log("[HUD] WebSocket подключен!");
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "init" || msg.type === "track_change") {
+            updateUi(msg.track, msg.isPlaying);
+          } else if (msg.type === "state_change") {
+            if (currentTrack) {
+              updateUi(currentTrack, msg.state === "play");
+            }
+          } else if (msg.type === "progress") {
+            serverSeek = msg.seek;
+            totalDuration = msg.duration;
+            lastSyncTime = Date.now();
+          }
+        } catch (e) {
+          console.warn("[HUD] Ошибка сообщения:", e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.warn("[HUD] WebSocket разорван. Переподключение через 2 сек...");
+        setTimeout(connectWs, 2000);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    }
+
+    // Initial Fetch fallback
+    fetch("/api/now-playing")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.track) {
+          updateUi(data.track, data.isPlaying);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        connectWs();
+      });
+  </script>
+</body>
+</html>

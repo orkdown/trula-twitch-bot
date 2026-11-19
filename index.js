@@ -6,6 +6,7 @@ if (typeof globalThis.WebSocket === "undefined") {
 import { config } from "./config.js";
 import { TrulaClient } from "./trula.js";
 import { TwitchChatBot } from "./twitch.js";
+import { HudServer } from "./hud.js";
 
 // Bulletproof error handling: keep process alive on any unexpected error
 process.on("uncaughtException", (err) => {
@@ -31,6 +32,9 @@ const trula = new TrulaClient();
 // 2. Initialize Twitch Chat Bot
 const twitch = new TwitchChatBot(trula);
 
+// 3. Initialize HUD Widget Server for OBS
+const hud = new HudServer(trula);
+
 async function start() {
   console.log("[Init] Проверка подключения к Trula API...");
   try {
@@ -45,6 +49,9 @@ async function start() {
 
   // Connect to Twitch Chat
   twitch.connect();
+
+  // Start HUD Server for OBS Studio Browser Source
+  hud.start();
 }
 
 start();

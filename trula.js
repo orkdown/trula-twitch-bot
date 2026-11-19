@@ -25,6 +25,7 @@ export class TrulaClient {
 
     // Callbacks
     this.onTrackChange = null;
+    this.onWsEvent = null;
   }
 
   // --- REST API METHODS ---
@@ -143,6 +144,61 @@ export class TrulaClient {
       timing,
       url,
     };
+  }
+
+  async getHudData() {
+    const now = this.cachedNowPlaying;
+    if (now && now.track) {
+      const track = now.track || {};
+      const externalId = track.externalId || track.external_id || "";
+      const thumbnail = externalId
+        ? `https://i.ytimg.com/vi/${externalId}/hqdefault.jpg`
+        : "";
+
+      return {
+        isPlaying: now.state === "play",
+        track: {
+          title: track.title || "Без названия",
+          initiator: now.initiator?.displayName || "Баллы канала",
+          platform: track.platform || "youtube",
+          externalId,
+          thumbnail,
+          seek: typeof now.seek === "number" ? Math.floor(now.seek) : 0,
+          duration:
+            typeof now.endTime === "number"
+              ? Math.floor(now.endTime)
+              : typeof track.duration === "number"
+                ? Math.floor(track.duration)
+                : 0,
+          state: now.state || "stop",
+        },
+      };
+    }
+
+    // Fallback to REST API
+    try {
+      const rest = await this.getNowPlaying();
+      if (!rest) {
+        return { isPlaying: false, track: null };
+      }
+      return {
+        isPlaying: true,
+        track: {
+          title: rest.title,
+          initiator: rest.initiator || "Баллы канала",
+          platform: rest.platform,
+          externalId: rest.externalId,
+          thumbnail: rest.externalId
+            ? `https://i.ytimg.com/vi/${rest.externalId}/hqdefault.jpg`
+            : "",
+          seek: 0,
+          duration: 0,
+          state: "play",
+        },
+      };
+    } catch {
+      return { isPlaying: false, track: null };
+    }
   }
 
   async resolveEventInitiator(eventId) {
@@ -282,6 +338,9 @@ export class TrulaClient {
             this.onTrackChange(this.formatWsNowPlaying(payload));
           }
         }
+        if (this.onWsEvent) {
+          this.onWsEvent("setTrack", payload);
+        }
         break;
       }
 
@@ -289,12 +348,18 @@ export class TrulaClient {
         if (frame.payload) {
           if (!this.cachedNowPlaying) this.cachedNowPlaying = {};
           this.cachedNowPlaying.state = frame.payload.state;
+          if (this.onWsEvent) {
+            this.onWsEvent("playState", frame.payload);
+          }
         }
         break;
       }
 
       case "orderAdded": {
         console.log(`[Trula WS] Новый заказ в очередь: ${frame.payload?.order?.track?.title || "трек"}`);
+        if (this.onWsEvent) {
+          this.onWsEvent("orderAdded", frame.payload);
+        }
         break;
       }
     }
