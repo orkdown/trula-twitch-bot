@@ -51,4 +51,7 @@ export const config = {
   // HUD Widget Configuration
   hudPort: parseInt(process.env.HUD_PORT || "3333", 10),
   hudHost: process.env.HUD_HOST || "0.0.0.0",
+
+  // Streamer Web-UI Remote Control
+  remotePin: process.env.REMOTE_PIN || "7777",
 };

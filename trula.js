@@ -57,6 +57,7 @@ export class TrulaClient {
     // In-memory real-time state cached from WebSocket
     this.cachedNowPlaying = null;
     this.currentTrackId = null;
+    this.isEmergencyActive = false;
 
     // Callbacks
     this.onTrackChange = null;
@@ -364,9 +365,21 @@ export class TrulaClient {
   }
 
   async emergency(isActive) {
+    this.isEmergencyActive = Boolean(isActive);
     return await this.fetchRest("actions/emergency", {
       method: "POST",
-      body: JSON.stringify({ is_active: isActive }),
+      body: JSON.stringify({ is_active: this.isEmergencyActive }),
+    });
+  }
+
+  async setTrack({ orderId = null, trackId = null, playlistId = null }) {
+    return await this.fetchRest("actions/set-track", {
+      method: "POST",
+      body: JSON.stringify({
+        order_id: orderId,
+        track_id: trackId,
+        playlist_id: playlistId,
+      }),
     });
   }
 
@@ -461,6 +474,17 @@ export class TrulaClient {
         console.log(`[Trula WS] Новый заказ в очередь: ${frame.payload?.order?.track?.title || "трек"}`);
         if (this.onWsEvent) {
           this.onWsEvent("orderAdded", frame.payload);
+        }
+        break;
+      }
+
+      case "emergency": {
+        if (typeof frame.payload?.isActive === "boolean") {
+          this.isEmergencyActive = frame.payload.isActive;
+          console.log(`[Trula WS] Аварийный режим (emergency): ${this.isEmergencyActive ? "ВКЛЮЧЕН" : "ВЫКЛЮЧЕН"}`);
+          if (this.onWsEvent) {
+            this.onWsEvent("emergency", frame.payload);
+          }
         }
         break;
       }

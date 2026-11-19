@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Trula Stream Remote Control</title>
+  <style>
+    :root {
+      --accent-r: 145;
+      --accent-g: 70;
+      --accent-b: 255;
+      --accent: rgb(var(--accent-r), var(--accent-g), var(--accent-b));
+      --accent-glow: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.5);
+      --accent-border: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.35);
+      --accent-sec: #00F5FF;
+      --bg: #0c0e18;
+      --card-bg: rgba(20, 24, 38, 0.7);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --text: #FFFFFF;
+      --text-muted: #8E9BAE;
+      --danger: #FF3366;
+      --danger-glow: rgba(255, 51, 102, 0.45);
+      --success: #00FF88;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 580px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-sec) 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px var(--accent-glow);
+    }
+
+    .logo-icon svg {
+      width: 18px;
+      height: 18px;
+      fill: #fff;
+    }
+
+    .header-titles h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .header-titles p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(0, 255, 136, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .status-pill.offline {
+      background: rgba(255, 51, 102, 0.15);
+      color: var(--danger);
+      border-color: rgba(255, 51, 102, 0.3);
+    }
+    .status-pill.offline .status-dot {
+      background: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+
+    .btn-icon {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-icon:active {
+      transform: scale(0.92);
+    }
+
+    /* Player Card */
+    .player-card {
+      position: relative;
+      background: rgba(14, 17, 28, 0.55);
+      border: 1px solid var(--accent-border);
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 35px var(--accent-glow);
+      overflow: hidden;
+      backdrop-filter: blur(28px) saturate(200%);
+    }
+
+    .player-backdrop {
+      position: absolute;
+      inset: -40px;
+      background-size: cover;
+      background-position: center;
+      filter: blur(36px) saturate(260%) brightness(0.6);
+      transform: scale(1.3);
+      opacity: 0;
+      z-index: 0;
+      pointer-events: none;
+      transition: background-image 0.8s ease, opacity 0.8s ease;
+    }
+
+    .player-gradient {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 18% 40%, rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.55) 0%, rgba(12, 14, 24, 0.75) 100%),
+                  linear-gradient(135deg, rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.35) 0%, rgba(8, 10, 18, 0.85) 100%);
+      z-index: 1;
+      pointer-events: none;
+      transition: background 0.8s ease;
+    }
+
+    .player-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .track-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .cover-wrapper {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      flex-shrink: 0;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #111420;
+    }
+
+    .cover-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .cover-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1f2333 0%, #11131c 100%);
+    }
+    .cover-placeholder svg {
+      width: 36px;
+      height: 36px;
+      fill: #667280;
+    }
+
+    .track-meta {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .badges-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .badge-initiator {
+      background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.3);
+      border: 1px solid var(--accent-border);
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+
+    .badge-state {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #dfcbff;
+    }
+    .badge-state.playing {
+      background: rgba(0, 255, 136, 0.2);
+      border-color: rgba(0, 255, 136, 0.4);
+      color: #00FF88;
+    }
+
+    .track-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #FFFFFF;
+      line-height: 1.3;
+      word-break: break-word;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+    }
+
+    /* Progress & Timing */
+    .progress-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-sec) 100%);
+      box-shadow: 0 0 12px var(--accent-glow);
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .timings-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Controls Bar */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 2fr 1.5fr;
+      gap: 12px;
+    }
+
+    .btn-main {
+      padding: 14px 20px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+    .btn-main:active {
+      transform: scale(0.97);
+    }
+
+    .btn-play {
+      background: linear-gradient(135deg, var(--accent) 0%, rgb(180, 100, 255) 100%);
+      color: #FFFFFF;
+      box-shadow: 0 8px 24px var(--accent-glow);
+      border: none;
+    }
+    .btn-play svg {
+      width: 18px;
+      height: 18px;
+      fill: #fff;
+    }
+
+    .btn-skip {
+      background: rgba(255, 255, 255, 0.1);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .btn-skip:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+    .btn-skip svg {
+      width: 18px;
+      height: 18px;
+      fill: #fff;
+    }
+
+    /* Emergency / Panic Button */
+    .btn-emergency {
+      grid-column: 1 / -1;
+      background: rgba(255, 51, 102, 0.15);
+      border: 1px solid rgba(255, 51, 102, 0.4);
+      color: #FF5E85;
+      padding: 12px 18px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .btn-emergency.active {
+      background: var(--danger);
+      color: #FFFFFF;
+      box-shadow: 0 0 25px var(--danger-glow);
+      border-color: #FF3366;
+      animation: pulseAlert 1.5s infinite;
+    }
+    @keyframes pulseAlert {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(0.99); }
+    }
+
+    /* Queue & Search Sections */
+    .card-section {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px 12px;
+      transition: background 0.2s;
+    }
+    .queue-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .queue-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .queue-item-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #FFFFFF;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .queue-item-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .btn-queue-play {
+      background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.25);
+      border: 1px solid var(--accent-border);
+      color: #FFFFFF;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .btn-queue-play:active {
+      transform: scale(0.94);
+    }
+
+    .queue-empty {
+      text-align: center;
+      padding: 24px 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Search Bar */
+    .search-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .search-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: #FFFFFF;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+    }
+    .search-input::placeholder {
+      color: #6E7D92;
+    }
+
+    .btn-search {
+      background: var(--accent);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 12px;
+      padding: 0 18px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-search:active {
+      opacity: 0.8;
+    }
+
+    .search-result-card {
+      display: none;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--accent-border);
+      border-radius: 12px;
+      padding: 12px;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .search-result-thumb {
+      width: 50px;
+      height: 50px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .search-result-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .search-result-title {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-copy-link {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* PIN Code Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 10, 18, 0.92);
+      backdrop-filter: blur(20px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 999;
+    }
+
+    .modal-card {
+      background: #141826;
+      border: 1px solid var(--accent-border);
+      border-radius: 24px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px var(--accent-glow);
+    }
+
+    .modal-icon {
+      width: 56px;
+      height: 56px;
+      background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.2);
+      border: 1px solid var(--accent-border);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .modal-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: -12px;
+    }
+
+    .pin-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 24px;
+      letter-spacing: 10px;
+      text-align: center;
+      color: #FFFFFF;
+      font-weight: 700;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .pin-input:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-submit-pin {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent) 0%, rgb(180, 100, 255) 100%);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 20px var(--accent-glow);
+    }
+
+    .pin-error {
+      color: var(--danger);
+      font-size: 12px;
+      font-weight: 600;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- PIN Gate Modal -->
+  <div id="pinModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-icon">🔐</div>
+      <div class="modal-title">Trula Remote Control</div>
+      <div class="modal-subtitle">Канал orkdown • Введите PIN-код доступа</div>
+      <input type="password" id="pinInput" class="pin-input" maxlength="8" placeholder="••••" autocomplete="off" />
+      <div id="pinError" class="pin-error">Неверный PIN-код!</div>
+      <button id="btnPinSubmit" class="btn-submit-pin">Войти в пульт</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Top Header -->
+    <header>
+      <div class="header-left">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        </div>
+        <div class="header-titles">
+          <h1>Trula Remote</h1>
+          <p>Канал: <strong style="color:#dfcbff;">#orkdown</strong></p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="statusPill" class="status-pill">
+          <span class="status-dot"></span>
+          <span id="statusText">LIVE</span>
+        </div>
+        <button id="btnLogout" class="btn-icon" title="Сменить PIN / Выйти">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 17v-3H9v-4h7V7l5 5-5 5M14 2a2 2 0 0 1 2 2v2h-2V4H5v16h9v-2h2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Player Card -->
+    <section class="player-card">
+      <div id="playerBackdrop" class="player-backdrop"></div>
+      <div class="player-gradient"></div>
+
+      <div class="player-content">
+        <div class="track-row">
+          <div class="cover-wrapper">
+            <div id="coverPlaceholder" class="cover-placeholder">
+              <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            </div>
+            <img id="coverImg" class="cover-img" alt="Artwork" crossorigin="anonymous" />
+          </div>
+
+          <div class="track-meta">
+            <div class="badges-row">
+              <div id="badgeInitiator" class="badge badge-initiator" style="display:none;">
+                Заказал(а): <span id="initiatorNick" style="font-weight:700; margin-left:4px;"></span>
+              </div>
+              <div id="badgeState" class="badge badge-state">ОСТАНОВЛЕНО</div>
+            </div>
+            <h2 id="trackTitle" class="track-title">Загрузка музыки...</h2>
+          </div>
+        </div>
+
+        <!-- Progress Bar & Timers -->
+        <div class="progress-section">
+          <div class="progress-bar-bg" id="progressBarBg">
+            <div id="progressBarFill" class="progress-bar-fill"></div>
+          </div>
+          <div class="timings-row">
+            <span id="timeCurrent">0:00</span>
+            <span id="timeTotal">0:00</span>
+          </div>
+        </div>
+
+        <!-- Action Controls Bar -->
+        <div class="controls-grid">
+          <button id="btnTogglePlay" class="btn-main btn-play">
+            <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span id="playText">Пауза / Play</span>
+          </button>
+          <button id="btnSkip" class="btn-main btn-skip">
+            <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+            <span>Скип</span>
+          </button>
+          <button id="btnEmergency" class="btn-emergency">
+            <span>🚨 Экстренно скрыть видео (Panic)</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Music Search & Convert Card -->
+    <section class="card-section">
+      <div class="section-header">
+        <span class="section-title">🔍 Поиск и конвертер трека</span>
+      </div>
+      <div class="search-row">
+        <input type="text" id="searchInput" class="search-input" placeholder="Ссылка (Spotify, Яндекс, VK) или название трека..." />
+        <button id="btnSearch" class="btn-search">Найти</button>
+      </div>
+
+      <div id="searchResultCard" class="search-result-card">
+        <img id="searchResultThumb" class="search-result-thumb" src="" alt="Thumbnail" />
+        <div class="search-result-info">
+          <div id="searchResultTitle" class="search-result-title"></div>
+          <div style="font-size:11px; color:#00FF88; margin-top:2px;">Найдено на YouTube!</div>
+        </div>
+        <button id="btnCopyLink" class="btn-copy-link">Скопировать</button>
+      </div>
+    </section>
+
+    <!-- Live Queue Section -->
+    <section class="card-section">
+      <div class="section-header">
+        <span class="section-title">📋 Очередь заказов</span>
+        <button id="btnRefreshQueue" class="btn-icon" title="Обновить очередь">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        </button>
+      </div>
+
+      <div id="queueList" class="queue-list">
+        <div class="queue-empty">Очередь пуста. Треки играют из плейлиста.</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // State
+    let pin = localStorage.getItem("trula_remote_pin") || "";
+    let isPlaying = false;
+    let isEmergencyActive = false;
+    let serverSeek = 0;
+    let totalDuration = 0;
+    let lastSyncTime = Date.now();
+    let currentFoundUrl = "";
+    let ws = null;
+
+    // DOM Elements
+    const pinModal = document.getElementById("pinModal");
+    const pinInput = document.getElementById("pinInput");
+    const pinError = document.getElementById("pinError");
+    const btnPinSubmit = document.getElementById("btnPinSubmit");
+    const btnLogout = document.getElementById("btnLogout");
+
+    const statusPill = document.getElementById("statusPill");
+    const statusText = document.getElementById("statusText");
+
+    const playerBackdrop = document.getElementById("playerBackdrop");
+    const coverImg = document.getElementById("coverImg");
+    const coverPlaceholder = document.getElementById("coverPlaceholder");
+    const trackTitle = document.getElementById("trackTitle");
+    const badgeInitiator = document.getElementById("badgeInitiator");
+    const initiatorNick = document.getElementById("initiatorNick");
+    const badgeState = document.getElementById("badgeState");
+
+    const progressBarFill = document.getElementById("progressBarFill");
+    const timeCurrent = document.getElementById("timeCurrent");
+    const timeTotal = document.getElementById("timeTotal");
+
+    const btnTogglePlay = document.getElementById("btnTogglePlay");
+    const playIcon = document.getElementById("playIcon");
+    const playText = document.getElementById("playText");
+    const btnSkip = document.getElementById("btnSkip");
+    const btnEmergency = document.getElementById("btnEmergency");
+
+    const searchInput = document.getElementById("searchInput");
+    const btnSearch = document.getElementById("btnSearch");
+    const searchResultCard = document.getElementById("searchResultCard");
+    const searchResultThumb = document.getElementById("searchResultThumb");
+    const searchResultTitle = document.getElementById("searchResultTitle");
+    const btnCopyLink = document.getElementById("btnCopyLink");
+
+    const queueList = document.getElementById("queueList");
+    const btnRefreshQueue = document.getElementById("btnRefreshQueue");
+
+    // --- PIN AUTHENTICATION ---
+    async function verifyPin(p) {
+      try {
+        const res = await fetch("/api/remote/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin: p })
+        });
+        const data = await res.json();
+        return data.success === true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function checkAuth() {
+      if (pin && await verifyPin(pin)) {
+        pinModal.style.display = "none";
+        initRemote();
+      } else {
+        pinModal.style.display = "flex";
+        pinInput.focus();
+      }
+    }
+
+    btnPinSubmit.onclick = async () => {
+      const val = pinInput.value.trim();
+      if (!val) return;
+      btnPinSubmit.textContent = "Проверка...";
+      if (await verifyPin(val)) {
+        pin = val;
+        localStorage.setItem("trula_remote_pin", pin);
+        pinModal.style.display = "none";
+        pinError.style.display = "none";
+        initRemote();
+      } else {
+        pinError.style.display = "block";
+      }
+      btnPinSubmit.textContent = "Войти в пульт";
+    };
+
+    pinInput.onkeydown = (e) => {
+      if (e.key === "Enter") btnPinSubmit.click();
+    };
+
+    btnLogout.onclick = () => {
+      if (confirm("Выйти из пульта управления?")) {
+        localStorage.removeItem("trula_remote_pin");
+        pin = "";
+        location.reload();
+      }
+    };
+
+    // --- API HELPER WITH PIN AUTH ---
+    async function apiPost(endpoint, body = {}) {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-pin": pin
+        },
+        body: JSON.stringify({ ...body, pin })
+      });
+      if (res.status === 401) {
+        alert("Сессия истекла или неверный PIN-код!");
+        localStorage.removeItem("trula_remote_pin");
+        location.reload();
+        return null;
+      }
+      return await res.json().catch(() => null);
+    }
+
+    function formatTime(sec) {
+      if (!sec || isNaN(sec) || sec < 0) return "0:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${s < 10 ? "0" : ""}${s}`;
+    }
+
+    // --- COLOR PALETTE EXTRACTION ---
+    function extractPalette(img) {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, 32, 32);
+        const data = ctx.getImageData(0, 0, 32, 32).data;
+
+        let bestColor = null;
+        let bestScore = -1;
+
+        for (let i = 0; i < data.length; i += 16) {
+          const r = data[i], g = data[i+1], b = data[i+2];
+          const max = Math.max(r, g, b), min = Math.min(r, g, b);
+          const delta = max - min;
+          const sat = max === 0 ? 0 : delta / max;
+          const bri = max / 255;
+
+          if (bri > 0.25 && bri < 0.92 && sat > 0.28) {
+            const score = sat * 2.0 + (1 - Math.abs(bri - 0.6));
+            if (score > bestScore) {
+              bestScore = score;
+              bestColor = { r, g, b };
+            }
+          }
+        }
+
+        if (bestColor) {
+          document.documentElement.style.setProperty("--accent-r", bestColor.r);
+          document.documentElement.style.setProperty("--accent-g", bestColor.g);
+          document.documentElement.style.setProperty("--accent-b", bestColor.b);
+        }
+      } catch {}
+    }
+
+    // --- UI UPDATERS ---
+    function updatePlayerUi(trackData, playing) {
+      if (!trackData) return;
+      isPlaying = playing;
+
+      trackTitle.textContent = trackData.title || "Без названия";
+
+      // Initiator
+      const isPlaylist = trackData.isPlaylist === true || !trackData.initiator || trackData.initiator.startsWith("Плейлист");
+      if (isPlaylist) {
+        badgeInitiator.style.display = "none";
+      } else {
+        badgeInitiator.style.display = "inline-flex";
+        initiatorNick.textContent = trackData.initiator;
+      }
+
+      // State
+      if (isPlaying) {
+        badgeState.textContent = "▶ ИГРАЕТ";
+        badgeState.className = "badge badge-state playing";
+        playIcon.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+        playText.textContent = "Пауза";
+      } else {
+        badgeState.textContent = "⏸ ПАУЗА";
+        badgeState.className = "badge badge-state";
+        playIcon.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+        playText.textContent = "Играть";
+      }
+
+      // Artwork & Backdrop
+      if (trackData.thumbnail) {
+        playerBackdrop.style.backgroundImage = `url("${trackData.thumbnail}")`;
+        playerBackdrop.style.opacity = "0.9";
+        coverImg.src = trackData.thumbnail;
+        coverImg.onload = () => {
+          coverImg.style.display = "block";
+          coverPlaceholder.style.display = "none";
+          extractPalette(coverImg);
+        };
+        coverImg.onerror = () => {
+          coverImg.style.display = "none";
+          coverPlaceholder.style.display = "flex";
+        };
+      } else {
+        playerBackdrop.style.backgroundImage = "none";
+        playerBackdrop.style.opacity = "0";
+        coverImg.style.display = "none";
+        coverPlaceholder.style.display = "flex";
+      }
+
+      // Timings
+      serverSeek = typeof trackData.seek === "number" ? trackData.seek : 0;
+      totalDuration = typeof trackData.duration === "number" ? trackData.duration : 0;
+      lastSyncTime = Date.now();
+
+      timeTotal.textContent = totalDuration > 0 ? formatTime(totalDuration) : "";
+      timeCurrent.textContent = formatTime(serverSeek);
+    }
+
+    function updateEmergencyUi(isActive) {
+      isEmergencyActive = Boolean(isActive);
+      if (isEmergencyActive) {
+        btnEmergency.className = "btn-emergency active";
+        btnEmergency.innerHTML = "<span>🚨 МЕДИА СКРЫТО (Нажмите, чтобы показать)</span>";
+      } else {
+        btnEmergency.className = "btn-emergency";
+        btnEmergency.innerHTML = "<span>🚨 Экстренно скрыть видео (Panic)</span>";
+      }
+    }
+
+    async function loadQueue() {
+      try {
+        const res = await fetch(`/api/remote/queue?pin=${encodeURIComponent(pin)}`);
+        const data = await res.json();
+        const orders = data.orders || [];
+
+        if (orders.length === 0) {
+          queueList.innerHTML = `<div class="queue-empty">Очередь заказов пуста. Музыка играет из плейлиста.</div>`;
+          return;
+        }
+
+        queueList.innerHTML = orders.map((ord, idx) => `
+          <div class="queue-item">
+            <div class="queue-item-info">
+              <div class="queue-item-title">${idx + 1}. ${ord.title}</div>
+              <div class="queue-item-meta">${ord.initiator ? "Заказал(а): " + ord.initiator : "Заказ зрителя"}</div>
+            </div>
+            <button class="btn-queue-play" onclick="playOrderItem('${ord.id}')">▶ Запустить</button>
+          </div>
+        `).join("");
+      } catch (e) {
+        console.warn("Queue load error:", e);
+      }
+    }
+
+    window.playOrderItem = async (orderId) => {
+      await apiPost("/api/remote/set-track", { orderId });
+      setTimeout(loadQueue, 1000);
+    };
+
+    // --- CONTROLS ACTIONS ---
+    btnTogglePlay.onclick = async () => {
+      await apiPost("/api/remote/toggle-play");
+    };
+
+    btnSkip.onclick = async () => {
+      if (confirm("Пропустить текущий трек?")) {
+        await apiPost("/api/remote/skip");
+      }
+    };
+
+    btnEmergency.onclick = async () => {
+      const nextState = !isEmergencyActive;
+      await apiPost("/api/remote/emergency", { isActive: nextState });
+      updateEmergencyUi(nextState);
+    };
+
+    btnRefreshQueue.onclick = () => {
+      loadQueue();
+    };
+
+    // Search & Convert
+    btnSearch.onclick = async () => {
+      const q = searchInput.value.trim();
+      if (!q) return;
+      btnSearch.textContent = "...";
+      try {
+        const res = await apiPost("/api/remote/search", { query: q });
+        if (res && res.youtubeUrl) {
+          currentFoundUrl = res.youtubeUrl;
+          searchResultThumb.src = res.thumbnailUrl || `https://i.ytimg.com/vi/placeholder/hqdefault.jpg`;
+          searchResultTitle.textContent = res.artist ? `${res.artist} - ${res.title}` : res.title;
+          searchResultCard.style.display = "flex";
+        } else {
+          alert("Не удалось найти трек на YouTube по этому запросу!");
+          searchResultCard.style.display = "none";
+        }
+      } catch (e) {
+        alert("Ошибка поиска: " + e.message);
+      }
+      btnSearch.textContent = "Найти";
+    };
+
+    btnCopyLink.onclick = () => {
+      if (currentFoundUrl) {
+        navigator.clipboard.writeText(currentFoundUrl);
+        btnCopyLink.textContent = "Скопировано!";
+        setTimeout(() => btnCopyLink.textContent = "Скопировать", 2000);
+      }
+    };
+
+    // --- 60 FPS CONTINUOUS TIMER INTERPOLATION ---
+    function renderProgress() {
+      if (isPlaying && totalDuration > 0) {
+        const elapsedSec = (Date.now() - lastSyncTime) / 1000;
+        const currentSec = Math.min(totalDuration, serverSeek + elapsedSec);
+        const percent = Math.min(100, Math.max(0, (currentSec / totalDuration) * 100));
+        progressBarFill.style.width = `${percent}%`;
+        timeCurrent.textContent = formatTime(currentSec);
+      } else if (totalDuration > 0) {
+        const percent = Math.min(100, Math.max(0, (serverSeek / totalDuration) * 100));
+        progressBarFill.style.width = `${percent}%`;
+        timeCurrent.textContent = formatTime(serverSeek);
+      }
+      requestAnimationFrame(renderProgress);
+    }
+    requestAnimationFrame(renderProgress);
+
+    // --- WEBSOCKET LIVE SYNC ---
+    function connectWs() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      ws = new WebSocket(`${proto}//${location.host}/ws`);
+
+      ws.onopen = () => {
+        statusPill.className = "status-pill";
+        statusText.textContent = "LIVE";
+      };
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "init") {
+            updatePlayerUi(msg.track, msg.isPlaying);
+            if (typeof msg.isEmergency === "boolean") updateEmergencyUi(msg.isEmergency);
+            loadQueue();
+          } else if (msg.type === "track_change") {
+            updatePlayerUi(msg.track, msg.isPlaying);
+            loadQueue();
+          } else if (msg.type === "state_change") {
+            isPlaying = msg.state === "play";
+            updatePlayerUi(msg.track || { ...msg }, isPlaying);
+          } else if (msg.type === "progress") {
+            if (typeof msg.seek === "number") serverSeek = msg.seek;
+            if (typeof msg.duration === "number" && msg.duration > 0) totalDuration = msg.duration;
+            lastSyncTime = Date.now();
+          } else if (msg.type === "emergency") {
+            updateEmergencyUi(msg.isActive);
+          } else if (msg.type === "orderAdded") {
+            loadQueue();
+          }
+        } catch {}
+      };
+
+      ws.onclose = () => {
+        statusPill.className = "status-pill offline";
+        statusText.textContent = "RECONNECT";
+        setTimeout(connectWs, 2000);
+      };
+    }
+
+    function initRemote() {
+      connectWs();
+      loadQueue();
+    }
+
+    checkAuth();
+  </script>
+</body>
+</html>

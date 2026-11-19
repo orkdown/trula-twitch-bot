@@ -233,6 +233,17 @@ export class TwitchChatBot {
 
     try {
       switch (command) {
+        case "!help":
+        case "!commands":
+        case "!команды":
+        case "!помощь": {
+          this.lastCommandTime = now;
+          this.sendMessage(
+            "📖 Музыкальные команды: !song — текущий трек | !queue — очередь | !link <ссылка/название> — найти трек для заказа | !skip — голосование за скип | !yt — ссылка на YouTube"
+          );
+          break;
+        }
+
         case "!song":
         case "!np":
         case "!track":
