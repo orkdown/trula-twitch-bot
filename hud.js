@@ -39,6 +39,7 @@ export class HudServer {
     this.wss = null;
     this.clients = new Set();
     this.syncInterval = null;
+    this.aiDj = null;
 
     // Hook up Trula real-time events
     if (this.trula) {
@@ -50,6 +51,10 @@ export class HudServer {
         this.handleTrulaEvent(type, payload);
       };
     }
+  }
+
+  setAiDj(aiDjService) {
+    this.aiDj = aiDjService;
   }
 
   start() {
@@ -109,6 +114,23 @@ export class HudServer {
         return;
       }
 
+      // 3.5. API: AI-DJ Audio Stream (MP3)
+      if (pathname === "/api/dj/latest.mp3") {
+        if (this.aiDj && this.aiDj.latestAudioBuffer) {
+          res.writeHead(200, {
+            "Content-Type": "audio/mpeg",
+            "Content-Length": this.aiDj.latestAudioBuffer.length,
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Access-Control-Allow-Origin": "*",
+          });
+          res.end(this.aiDj.latestAudioBuffer);
+        } else {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Нет готовой озвучки" }));
+        }
+        return;
+      }
+
       // 4. API: Remote Auth Check
       if (pathname === "/api/remote/auth" && req.method === "POST") {
         const body = await parseJsonBody(req);
@@ -150,6 +172,24 @@ export class HudServer {
             await this.trula.skipTrack();
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: true }));
+            return;
+          }
+
+          if (pathname === "/api/remote/dj-announce" && req.method === "POST") {
+            if (this.aiDj) {
+              await this.aiDj.triggerSpeech();
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(
+                JSON.stringify({
+                  success: true,
+                  text: this.aiDj.latestSpeechText,
+                  engine: this.aiDj.lastEngine,
+                })
+              );
+            } else {
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "AI-DJ не инициализирован" }));
+            }
             return;
           }
 
