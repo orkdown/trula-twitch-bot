@@ -131,6 +131,16 @@ export class HudServer {
         try {
           if (pathname === "/api/remote/toggle-play" && req.method === "POST") {
             await this.trula.togglePlay();
+            if (this.trula.cachedNowPlaying) {
+              const wasPlay = this.trula.cachedNowPlaying.state === "play";
+              this.trula.cachedNowPlaying.state = wasPlay ? "pause" : "play";
+              this.broadcast({
+                type: "state_change",
+                state: this.trula.cachedNowPlaying.state,
+                seek: this.trula.cachedNowPlaying.seek,
+                track: this.trula.cachedNowPlaying.track,
+              });
+            }
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: true }));
             return;

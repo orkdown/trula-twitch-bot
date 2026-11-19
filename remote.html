@@ -494,6 +494,27 @@
       transform: scale(0.94);
     }
 
+    .btn-queue-dismiss {
+      background: rgba(255, 68, 68, 0.15);
+      border: 1px solid rgba(255, 68, 68, 0.35);
+      color: #FF6B6B;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .btn-queue-dismiss:active {
+      transform: scale(0.94);
+    }
+    .queue-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
     .queue-empty {
       text-align: center;
       padding: 24px 12px;
@@ -772,13 +793,21 @@
         <button id="btnSearch" class="btn-search">Найти</button>
       </div>
 
-      <div id="searchResultCard" class="search-result-card">
-        <img id="searchResultThumb" class="search-result-thumb" src="" alt="Thumbnail" />
-        <div class="search-result-info">
-          <div id="searchResultTitle" class="search-result-title"></div>
-          <div style="font-size:11px; color:#00FF88; margin-top:2px;">Найдено на YouTube!</div>
+      <div id="searchResultCard" class="search-result-card" style="display:none; flex-direction:column; align-items:stretch; gap:12px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <img id="searchResultThumb" class="search-result-thumb" src="" alt="Thumbnail" />
+          <div class="search-result-info">
+            <div id="searchResultTitle" class="search-result-title"></div>
+            <div style="font-size:11px; color:#00FF88; margin-top:2px;">✔ Конвертировано на YouTube!</div>
+          </div>
         </div>
-        <button id="btnCopyLink" class="btn-copy-link">Скопировать</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="btnCopyLink" class="btn-copy-link" style="flex:1; padding:8px 12px; font-size:12px;">📋 Скопировать ссылку</button>
+          <a id="btnOpenYt" href="#" target="_blank" class="btn-copy-link" style="text-decoration:none; text-align:center; padding:8px 12px; font-size:12px;">▶ Открыть видео</a>
+        </div>
+        <div style="font-size:11px; color:#9EABBA; line-height:1.4; background:rgba(0,0,0,0.3); padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+          💡 <strong>Заказ без списания баллов:</strong> скопируйте ссылку и вставьте её в поле ввода в док-панели Trula в OBS.
+        </div>
       </div>
     </section>
 
@@ -1032,11 +1061,15 @@
       }
     }
 
+    const dismissedOrders = new Set();
+    const btnOpenYt = document.getElementById("btnOpenYt");
+
     async function loadQueue() {
       try {
         const res = await fetch(`/api/remote/queue?pin=${encodeURIComponent(pin)}`);
         const data = await res.json();
-        const orders = data.orders || [];
+        const rawOrders = data.orders || [];
+        const orders = rawOrders.filter(ord => !dismissedOrders.has(ord.id));
 
         if (orders.length === 0) {
           queueList.innerHTML = `<div class="queue-empty">Очередь заказов пуста. Музыка играет из плейлиста.</div>`;
@@ -1044,12 +1077,15 @@
         }
 
         queueList.innerHTML = orders.map((ord, idx) => `
-          <div class="queue-item">
+          <div class="queue-item" id="queue-item-${ord.id}">
             <div class="queue-item-info">
               <div class="queue-item-title">${idx + 1}. ${ord.title}</div>
               <div class="queue-item-meta">${ord.initiator ? "Заказал(а): " + ord.initiator : "Заказ зрителя"}</div>
             </div>
-            <button class="btn-queue-play" onclick="playOrderItem('${ord.id}')">▶ Запустить</button>
+            <div class="queue-actions">
+              <button class="btn-queue-play" id="btn-play-${ord.id}" onclick="playOrderItem('${ord.id}')">▶ Запустить</button>
+              <button class="btn-queue-dismiss" onclick="dismissOrderItem('${ord.id}')" title="Скрыть из списка">✕</button>
+            </div>
           </div>
         `).join("");
       } catch (e) {
@@ -1058,25 +1094,47 @@
     }
 
     window.playOrderItem = async (orderId) => {
+      const btn = document.getElementById(`btn-play-${orderId}`);
+      if (btn) btn.textContent = "Запуск...";
       await apiPost("/api/remote/set-track", { orderId });
-      setTimeout(loadQueue, 1000);
+      setTimeout(loadQueue, 800);
     };
+
+    window.dismissOrderItem = (orderId) => {
+      dismissOrdersItem(orderId);
+    };
+
+    function dismissOrdersItem(orderId) {
+      dismissedOrders.add(orderId);
+      const el = document.getElementById(`queue-item-${orderId}`);
+      if (el) el.remove();
+      if (queueList.children.length === 0) {
+        queueList.innerHTML = `<div class="queue-empty">Очередь заказов пуста. Музыка играет из плейлиста.</div>`;
+      }
+    }
 
     // --- CONTROLS ACTIONS ---
     btnTogglePlay.onclick = async () => {
+      const nextPlay = !isPlaying;
+      btnTogglePlay.style.opacity = "0.7";
       await apiPost("/api/remote/toggle-play");
+      setTimeout(() => { btnTogglePlay.style.opacity = "1"; }, 300);
     };
 
     btnSkip.onclick = async () => {
       if (confirm("Пропустить текущий трек?")) {
+        btnSkip.style.opacity = "0.7";
         await apiPost("/api/remote/skip");
+        setTimeout(() => { btnSkip.style.opacity = "1"; }, 300);
       }
     };
 
     btnEmergency.onclick = async () => {
       const nextState = !isEmergencyActive;
+      btnEmergency.style.opacity = "0.7";
       await apiPost("/api/remote/emergency", { isActive: nextState });
       updateEmergencyUi(nextState);
+      setTimeout(() => { btnEmergency.style.opacity = "1"; }, 300);
     };
 
     btnRefreshQueue.onclick = () => {
@@ -1088,12 +1146,14 @@
       const q = searchInput.value.trim();
       if (!q) return;
       btnSearch.textContent = "...";
+      btnSearch.disabled = true;
       try {
         const res = await apiPost("/api/remote/search", { query: q });
         if (res && res.youtubeUrl) {
           currentFoundUrl = res.youtubeUrl;
           searchResultThumb.src = res.thumbnailUrl || `https://i.ytimg.com/vi/placeholder/hqdefault.jpg`;
           searchResultTitle.textContent = res.artist ? `${res.artist} - ${res.title}` : res.title;
+          if (btnOpenYt) btnOpenYt.href = res.youtubeUrl;
           searchResultCard.style.display = "flex";
         } else {
           alert("Не удалось найти трек на YouTube по этому запросу!");
@@ -1103,12 +1163,16 @@
         alert("Ошибка поиска: " + e.message);
       }
       btnSearch.textContent = "Найти";
+      btnSearch.disabled = false;
     };
 
     btnCopyLink.onclick = () => {
       if (currentFoundUrl) {
         navigator.clipboard.writeText(currentFoundUrl);
         btnCopyLink.textContent = "Скопировано!";
+        setTimeout(() => btnCopyLink.textContent = "📋 Скопировать ссылку", 2000);
+      }
+    };
         setTimeout(() => btnCopyLink.textContent = "Скопировать", 2000);
       }
     };

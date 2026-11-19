@@ -340,47 +340,113 @@ export class TrulaClient {
   }
 
   async skipTrack() {
-    // 1. Try REST next-track
-    try {
-      await this.fetchRest("actions/next-track", { method: "POST" });
-      return true;
-    } catch (e) {
-      console.warn("[Trula] REST skip failed, trying WS requestChangeTrack:", e.message);
-    }
-
-    // 2. Fallback to WS command
+    let wsSent = false;
+    // 1. Native WebSocket command (instant, native Trula protocol)
     if (this.isConnected && this.ws) {
       this.sendWs({
         type: "requestChangeTrack",
         payload: { orderId: null, trackId: null, playlistId: null },
       });
-      return true;
+      wsSent = true;
     }
 
+    // 2. Also try REST
+    try {
+      await this.fetchRest("actions/next-track", { method: "POST" });
+      return true;
+    } catch (e) {
+      if (wsSent) return true;
+      console.warn("[Trula] REST skip failed:", e.message);
+    }
+
+    if (wsSent) return true;
     throw new Error("Не удалось пропустить трек");
   }
 
   async togglePlay() {
-    return await this.fetchRest("actions/toggle-play", { method: "POST" });
+    let wsSent = false;
+    // 1. Native WebSocket frame (commands.mdx: requestTogglePlay with queue:manage)
+    if (this.isConnected && this.ws) {
+      this.sendWs({ type: "requestTogglePlay" });
+      wsSent = true;
+    }
+
+    // 2. Also try REST
+    try {
+      await this.fetchRest("actions/toggle-play", { method: "POST" });
+      return true;
+    } catch (e) {
+      if (wsSent) return true;
+      console.warn("[Trula] REST toggle-play error:", e.message);
+    }
+
+    if (wsSent) return true;
+    throw new Error("Не удалось переключить воспроизведение");
   }
 
   async emergency(isActive) {
     this.isEmergencyActive = Boolean(isActive);
-    return await this.fetchRest("actions/emergency", {
-      method: "POST",
-      body: JSON.stringify({ is_active: this.isEmergencyActive }),
-    });
+    let wsSent = false;
+
+    // 1. Native WebSocket frame (commands.mdx: type emergency, payload: { isActive })
+    if (this.isConnected && this.ws) {
+      this.sendWs({
+        type: "emergency",
+        payload: { isActive: this.isEmergencyActive },
+      });
+      wsSent = true;
+    }
+
+    // 2. Also try REST
+    try {
+      await this.fetchRest("actions/emergency", {
+        method: "POST",
+        body: JSON.stringify({ is_active: this.isEmergencyActive }),
+      });
+      return true;
+    } catch (e) {
+      if (wsSent) return true;
+      console.warn("[Trula] REST emergency error:", e.message);
+    }
+
+    if (wsSent) return true;
+    throw new Error("Не удалось изменить статус экстренного скрытия");
   }
 
   async setTrack({ orderId = null, trackId = null, playlistId = null }) {
-    return await this.fetchRest("actions/set-track", {
-      method: "POST",
-      body: JSON.stringify({
-        order_id: orderId,
-        track_id: trackId,
-        playlist_id: playlistId,
-      }),
-    });
+    let wsSent = false;
+
+    // 1. Native WebSocket frame (commands.mdx: requestChangeTrack with orderId/trackId/playlistId)
+    if (this.isConnected && this.ws) {
+      this.sendWs({
+        type: "requestChangeTrack",
+        payload: {
+          orderId: orderId || null,
+          trackId: trackId || null,
+          playlistId: playlistId || null,
+        },
+      });
+      wsSent = true;
+    }
+
+    // 2. Also try REST
+    try {
+      await this.fetchRest("actions/set-track", {
+        method: "POST",
+        body: JSON.stringify({
+          order_id: orderId,
+          track_id: trackId,
+          playlist_id: playlistId,
+        }),
+      });
+      return true;
+    } catch (e) {
+      if (wsSent) return true;
+      console.warn("[Trula] REST set-track error:", e.message);
+    }
+
+    if (wsSent) return true;
+    throw new Error("Не удалось запустить выбранный трек");
   }
 
   // --- WEBSOCKET REAL-TIME CONNECTION ---

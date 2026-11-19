@@ -53,5 +53,5 @@ export const config = {
   hudHost: process.env.HUD_HOST || "0.0.0.0",
 
   // Streamer Web-UI Remote Control
-  remotePin: process.env.REMOTE_PIN || "7777",
+  remotePin: process.env.REMOTE_PIN || "1580",
 };

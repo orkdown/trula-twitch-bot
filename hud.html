@@ -651,6 +651,16 @@
     }
     renderFrame();
 
+    function handleEmergency(isActive) {
+      if (isActive) {
+        hudCard.style.filter = "grayscale(90%) opacity(0.35)";
+        hudCard.style.transform = "scale(0.96)";
+      } else {
+        hudCard.style.filter = "none";
+        hudCard.style.transform = "none";
+      }
+    }
+
     // --- 6. WEBSOCKET REAL-TIME SYNC ---
     function connectWs() {
       const loc = window.location;
@@ -669,6 +679,9 @@
           const msg = JSON.parse(event.data);
           if (msg.type === "init" || msg.type === "track_change") {
             updateUi(msg.track, msg.isPlaying);
+            if (typeof msg.isEmergency === "boolean") handleEmergency(msg.isEmergency);
+          } else if (msg.type === "emergency") {
+            handleEmergency(msg.isActive);
           } else if (msg.type === "state_change") {
             isPlaying = msg.state === "play";
             if (currentTrack) {
