@@ -1,0 +1,8 @@
+services:
+  trula-bot:
+    build: .
+    container_name: trula-twitch-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    network_mode: bridge

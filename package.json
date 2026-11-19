@@ -1,0 +1,18 @@
+{
+  "name": "trula-twitch-bot",
+  "version": "1.0.0",
+  "description": "Lightweight resilient Twitch chat bot for Trula music playback",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "trula",
+    "twitch",
+    "bot",
+    "music"
+  ],
+  "author": "",
+  "license": "ISC"
+}
