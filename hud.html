@@ -339,10 +339,33 @@
   </div>
 
   <script>
-    // URL Options: ?autohide=true (by default false, never hides on pause)
+    // URL Options:
+    // ?idle=20 (auto-hide after 20 seconds of pause / stopped music; default: 20s)
+    // ?autohide=never or ?idle=0 (never auto-hide on pause)
+    // ?scale=1.0 (zoom/scale factor for widget)
     const urlParams = new URLSearchParams(window.location.search);
-    const autoHide = urlParams.get("autohide") === "true"; // FALSE BY DEFAULT
+    const idleParam = urlParams.get("idle") || urlParams.get("autohide");
+    const autoHideDisabled = idleParam === "never" || idleParam === "false" || idleParam === "0";
+    const idleSeconds = autoHideDisabled ? 0 : (parseInt(idleParam || "20", 10) || 20);
+    const idleTimeoutMs = idleSeconds * 1000;
     const scale = parseFloat(urlParams.get("scale")) || 1.0;
+
+    let idleTimer = null;
+    function scheduleIdleHide() {
+      if (idleTimer) clearTimeout(idleTimer);
+      if (autoHideDisabled) return;
+      idleTimer = setTimeout(() => {
+        hudCard.classList.remove("visible");
+      }, idleTimeoutMs);
+    }
+
+    function cancelIdleHide() {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+      hudCard.classList.add("visible");
+    }
 
     const hudCard = document.getElementById("hudCard");
     const cardBackdropImg = document.getElementById("cardBackdropImg");
@@ -546,7 +569,7 @@
     // --- 4. UPDATE UI ---
     function updateUi(trackData, playingState) {
       if (!trackData || !trackData.title) {
-        if (autoHide) hudCard.classList.remove("visible");
+        hudCard.classList.remove("visible");
         return;
       }
 
@@ -600,21 +623,13 @@
       timeTotal.textContent = totalDuration > 0 ? formatTime(totalDuration) : "";
       timeCurrent.textContent = formatTime(serverSeek);
 
-      // 5. Visibility: By default NEVER hide on pause!
-      hudCard.classList.add("visible");
+      // 5. Visibility with Auto-Hide Inactivity Timer
       if (isPlaying) {
         hudCard.classList.remove("paused");
-        if (hideTimer) {
-          clearTimeout(hideTimer);
-          hideTimer = null;
-        }
+        cancelIdleHide();
       } else {
         hudCard.classList.add("paused");
-        if (autoHide && !hideTimer) {
-          hideTimer = setTimeout(() => {
-            hudCard.classList.remove("visible");
-          }, 6000);
-        }
+        scheduleIdleHide();
       }
     }
 
@@ -693,6 +708,7 @@
               totalDuration = msg.duration;
             }
             lastSyncTime = Date.now();
+            cancelIdleHide();
           }
         } catch (e) {
           console.warn("[HUD] Ошибка сообщения:", e);
@@ -700,6 +716,7 @@
       };
 
       ws.onclose = () => {
+        scheduleIdleHide();
         setTimeout(connectWs, 2000);
       };
 

@@ -198,7 +198,7 @@ export class TrulaClient {
 
   async getHudData() {
     const now = this.cachedNowPlaying;
-    let isPlaying = now ? now.state === "play" : true;
+    let isPlaying = now ? now.state === "play" : false;
     let title = "";
     let initiator = "";
     let isPlaylist = false;
